@@ -22,11 +22,12 @@ func createUDPConnection(address string) (*net.UDPConn, error) {
 	return conn, nil
 }
 
-func worker(id int, address string, done chan bool, buffers <-chan []byte) {
+func worker(id int, address string, buffers <-chan []byte) {
 
 	conn, err := createUDPConnection(address)
 
 	if err != nil {
+		fmt.Printf("Unable to create a connection to addr, err: %s", err.Error())
 		return
 	}
 
@@ -40,27 +41,24 @@ func worker(id int, address string, done chan bool, buffers <-chan []byte) {
 	for buffer := range buffers {
 		_, err := conn.Write(buffer)
 		if err != nil {
-			break
+			fmt.Printf("Unable to send message to addr, err: %s", err.Error())
 		}
 	}
-
-	done <- true
 }
 
 type UDPPool struct {
 	buffers chan []byte
-	done    chan bool
 }
 
 //NewUDPPool create new UDP workers pool
 func NewUDPPool(address string, workerNumber int) *UDPPool {
 	buffers := make(chan []byte, workerNumber)
-	done := make(chan bool)
 
 	for wid := 1; wid < workerNumber; wid++ {
-		go worker(wid, address, done, buffers)
+		go worker(wid, address, buffers)
 	}
-	return &UDPPool{buffers, done}
+
+	return &UDPPool{buffers}
 }
 
 func (p *UDPPool) Fire(buffer []byte) {
