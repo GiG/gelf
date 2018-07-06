@@ -3,8 +3,8 @@ package client
 import (
 	"fmt"
 
-	"github.com/duythinht/gelf/chunk"
-	p "github.com/duythinht/gelf/pool"
+	"github.com/gig/gelf/chunk"
+	p "github.com/gig/gelf/pool"
 )
 
 type Config struct {
