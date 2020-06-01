@@ -3,6 +3,7 @@ package pool
 import (
 	"fmt"
 	"net"
+	"os"
 )
 
 const (
@@ -27,27 +28,28 @@ func worker(id int, address string, buffers <-chan []byte) {
 	conn, err := createUDPConnection(address)
 
 	if err != nil {
-		fmt.Printf("Unable to create a connection to addr, err: %s", err.Error())
+		fmt.Fprintf(os.Stderr, "Unable to create a connection to addr, err: %s", err.Error())
 		return
 	}
 
 	defer func() {
 		err := conn.Close()
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintf(os.Stderr, "Unable to close connection, err: %s", err.Error())
 		}
 	}()
 
 	for buffer := range buffers {
 		_, err := conn.Write(buffer)
 		if err != nil {
-			fmt.Printf("Unable to send message to addr, err: %s", err.Error())
+			fmt.Fprintf(os.Stderr, "Unable to send message to addr, err: %s", err.Error())
 		}
 	}
 }
 
 type UDPPool struct {
-	buffers chan []byte
+	buffers      chan []byte
+	workerNumber int
 }
 
 //NewUDPPool create new UDP workers pool
@@ -58,11 +60,15 @@ func NewUDPPool(address string, workerNumber int) *UDPPool {
 		go worker(wid, address, buffers)
 	}
 
-	return &UDPPool{buffers}
+	return &UDPPool{buffers, workerNumber}
 }
 
 func (p *UDPPool) Fire(buffer []byte) {
-	p.buffers <- buffer
+	if len(p.buffers) < p.workerNumber {
+		p.buffers <- buffer
+	} else {
+		fmt.Fprintf(os.Stderr, "Gelf buffer channel is full")
+	}
 }
 
 func (p *UDPPool) Close() {
